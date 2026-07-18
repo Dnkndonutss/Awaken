@@ -1,0 +1,15 @@
+import { describe, expect, it } from "vitest";
+import { findVisibleTutorialTarget, finishTutorial, initialTutorialProgress, moveTutorial, placeTutorialCard, shouldAutoStartTutorial, TUTORIAL_STEPS } from "./tutorial";
+
+describe("Awaken tutorial", () => {
+  it("detects only explicitly enrolled first-time users", () => { expect(shouldAutoStartTutorial(initialTutorialProgress())).toBe(true); expect(shouldAutoStartTutorial(null)).toBe(false); expect(shouldAutoStartTutorial({ ...initialTutorialProgress(), status: "completed" })).toBe(false); });
+  it("navigates forward and backward within bounds", () => { const start = initialTutorialProgress(); expect(moveTutorial(start, "back").currentStep).toBe(0); expect(moveTutorial(moveTutorial(start, "next"), "back").currentStep).toBe(0); let end = start; for (let i=0;i<30;i++) end=moveTutorial(end,"next"); expect(end.currentStep).toBe(TUTORIAL_STEPS.length-1); });
+  it("persists a resumable step as versioned data", () => { const saved = JSON.parse(JSON.stringify(moveTutorial(initialTutorialProgress(), "next"))); expect(saved).toMatchObject({ status: "in_progress", currentStep: 1, version: 3 }); });
+  it("records skip and completion timestamps", () => { const now="2026-07-16T12:00:00.000Z"; expect(finishTutorial(initialTutorialProgress(),"skipped",now)).toMatchObject({status:"skipped",completedAt:now}); expect(finishTutorial(initialTutorialProgress(),"completed",now)).toMatchObject({status:"completed",currentStep:TUTORIAL_STEPS.length-1}); });
+  it("restarts from the beginning", () => expect(initialTutorialProgress()).toMatchObject({status:"in_progress",currentStep:0,completedAt:null}));
+  it("moves the tour through real feature routes", () => expect(new Set(TUTORIAL_STEPS.map((step)=>step.route))).toEqual(new Set(["/","/stats","/tasks","/quests","/bosses","/reviews","/analytics","/settings"])));
+  it("skips unavailable targets and selects a visible mobile or desktop target", () => { const hidden={getBoundingClientRect:()=>({width:0,height:0})}; const visible={getBoundingClientRect:()=>({width:100,height:44})}; const root={querySelectorAll:()=>[hidden,visible]}; expect(findVisibleTutorialTarget("nav-tasks",root as never)).toBe(visible); expect(findVisibleTutorialTarget("missing",{querySelectorAll:()=>[]} as never)).toBeNull(); });
+  it("places the card fully inside the viewport without overlapping a target when space exists",()=>{const target={left:100,top:150,width:300,height:120};const result=placeTutorialCard(target,{width:240,height:160},{width:1000,height:700});expect(result.left).toBeGreaterThanOrEqual(target.left+target.width);expect(result.left+240).toBeLessThanOrEqual(988);expect(result.top).toBeGreaterThanOrEqual(12)});
+  it("keeps the card out from under a fixed desktop sidebar",()=>{const result=placeTutorialCard({left:320,top:180,width:500,height:180},{width:380,height:260},{width:1440,height:900,leftInset:316});expect(result.left).toBeGreaterThanOrEqual(316);});
+  it("supports pausing without marking the tutorial complete",()=>expect(finishTutorial(initialTutorialProgress(),"paused")).toMatchObject({status:"paused",completedAt:null}));
+});

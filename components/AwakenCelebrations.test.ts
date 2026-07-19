@@ -44,10 +44,13 @@ describe("celebration queue", () => {
     expect(theme).toBeDefined();
     if (!theme) return;
 
-    expect(buildCelebrations(previous, current, theme).map((item) => item.kind)).toEqual([
+    const celebrations = buildCelebrations(previous, current, theme);
+
+    expect(celebrations.map((item) => item.kind)).toEqual([
       "quest",
       "boss",
       "level"
     ]);
+    expect(new Set(celebrations.map((item) => item.id)).size).toBe(celebrations.length);
   });
 });

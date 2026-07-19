@@ -125,6 +125,7 @@ export function AwakenCelebrations() {
     <div
       aria-live="polite"
       className={`theme-level-up theme-level-up--${awaken.profile.arcThemeId.replace("_", "-")} theme-level-up--${active.kind}`}
+      key={active.id}
       role="status"
     >
       <span className="theme-level-up__symbol" aria-hidden="true">{active.symbol}</span>

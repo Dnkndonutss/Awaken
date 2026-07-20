@@ -17,7 +17,7 @@ export async function proxy(request: NextRequest) {
     const { data: saved } = await supabase.from("awaken_states").select("state").eq("user_id", user.id).maybeSingle();
     if (saved?.state && (saved.state as Record<string, unknown>).onboardingSettings) return NextResponse.redirect(new URL("/", request.url));
   }
-  if (user && !request.nextUrl.pathname.startsWith("/onboarding") && !request.nextUrl.pathname.startsWith("/api/")) {
+  if (user && !isPublic && !request.nextUrl.pathname.startsWith("/onboarding") && !request.nextUrl.pathname.startsWith("/api/")) {
     const { data } = await supabase.from("awaken_user_settings").select("onboarding_status").eq("user_id", user.id).maybeSingle();
     let complete = data?.onboarding_status === "complete";
     if (!complete) {

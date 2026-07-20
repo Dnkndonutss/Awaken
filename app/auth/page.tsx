@@ -20,7 +20,9 @@ export default function AuthPage() {
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const supabase = createClient();
-    const redirectTo = `${window.location.origin}/auth/callback`;
+    const redirectTo = mode === "reset"
+      ? `${window.location.origin}/auth/callback?next=${encodeURIComponent("/auth/update-password")}`
+      : `${window.location.origin}/auth/callback`;
     const result = mode === "signup"
       ? await supabase.auth.signUp({ email, password, options: { emailRedirectTo: redirectTo } })
       : mode === "reset"

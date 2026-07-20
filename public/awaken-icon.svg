@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="Awaken">
+  <defs>
+    <linearGradient id="bg" x1="64" y1="32" x2="448" y2="480" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#101827"/>
+      <stop offset="1" stop-color="#05070c"/>
+    </linearGradient>
+    <linearGradient id="glow" x1="144" y1="116" x2="368" y2="408" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#75efff"/>
+      <stop offset="1" stop-color="#22c9e8"/>
+    </linearGradient>
+  </defs>
+  <rect width="512" height="512" rx="112" fill="url(#bg)"/>
+  <circle cx="256" cy="256" r="178" fill="none" stroke="#203a4d" stroke-width="8"/>
+  <path d="M256 91 397 367H342l-31-64H201l-31 64h-55L256 91Zm0 105-34 69h68l-34-69Z" fill="url(#glow)"/>
+  <path d="M256 53v25M256 434v25M53 256h25M434 256h25M112 112l18 18M382 382l18 18M400 112l-18 18M130 382l-18 18" stroke="#75efff" stroke-width="10" stroke-linecap="round" opacity=".72"/>
+</svg>

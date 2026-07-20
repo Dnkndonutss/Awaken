@@ -1,5 +1,9 @@
 import { describe, expect, it } from "vitest";
-import { createStarterState, rollDailyQuestsToDate } from "@/hooks/use-awaken-state";
+import {
+  createStarterState,
+  rollDailyQuestsToDate,
+  shouldRollCalendarForward
+} from "@/hooks/use-awaken-state";
 
 describe("daily quest rollover", () => {
   it("creates a fresh dated quest set and clears daily milestones", () => {
@@ -19,5 +23,26 @@ describe("daily quest rollover", () => {
   it("does nothing when the current daily set is already active", () => {
     const state = createStarterState();
     expect(rollDailyQuestsToDate(state, state.questDate)).toBe(state);
+  });
+
+  it("performs zero idle rollover writes when the day and week are current", () => {
+    const state = createStarterState();
+    expect(
+      shouldRollCalendarForward(
+        state,
+        state.questDate,
+        state.activeBoss.weekStartDate
+      )
+    ).toBe(false);
+  });
+
+  it("rolls when either the quest day or boss week changes", () => {
+    const state = createStarterState();
+    expect(
+      shouldRollCalendarForward(state, "2030-05-21", state.activeBoss.weekStartDate)
+    ).toBe(true);
+    expect(
+      shouldRollCalendarForward(state, state.questDate, "2030-05-20")
+    ).toBe(true);
   });
 });

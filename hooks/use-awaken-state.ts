@@ -175,7 +175,9 @@ function useAwakenStateModel() {
   const [requiresOnboarding, setRequiresOnboarding] = useState(false);
   const stateRef = useRef(state);
   const revisionRef = useRef(0);
-  const saveChainRef = useRef(Promise.resolve());
+  const pendingSaveRef = useRef<AwakenState | null>(null);
+  const saveInFlightRef = useRef(false);
+  const saveTimerRef = useRef<number | null>(null);
   const pathname = usePathname();
   const today = getTodayQuestDate();
   const currentWeek = getCurrentWeekRange();
@@ -230,15 +232,43 @@ function useAwakenStateModel() {
   function queueCloudSave(nextState: AwakenState) {
     setSyncStatus(navigator.onLine ? "saving" : "offline");
     saveState(nextState); // recovery/outbox copy; never treated as authoritative
-    saveChainRef.current = saveChainRef.current.then(async () => {
-      if (!navigator.onLine) throw new Error("offline");
+    pendingSaveRef.current = nextState;
+    scheduleCloudSave();
+  }
+
+  function scheduleCloudSave(delay = 350) {
+    if (saveTimerRef.current !== null) {
+      window.clearTimeout(saveTimerRef.current);
+    }
+    saveTimerRef.current = window.setTimeout(() => {
+      saveTimerRef.current = null;
+      void flushCloudSave();
+    }, delay);
+  }
+
+  async function flushCloudSave() {
+    if (saveInFlightRef.current || !pendingSaveRef.current) return;
+    if (!navigator.onLine) {
+      setSyncStatus("offline");
+      return;
+    }
+
+    const nextState = pendingSaveRef.current;
+    pendingSaveRef.current = null;
+    saveInFlightRef.current = true;
+    setSyncStatus("saving");
+
+    try {
       const saved = await awakenRepository.save(nextState, revisionRef.current);
       revisionRef.current = saved.revision;
       setSyncStatus("saved");
-    }).catch((error: unknown) => {
+    } catch (error: unknown) {
       const message = error instanceof Error ? error.message : "";
       setSyncStatus(message.includes("another device") ? "conflict" : navigator.onLine ? "error" : "offline");
-    });
+    } finally {
+      saveInFlightRef.current = false;
+      if (pendingSaveRef.current) scheduleCloudSave(100);
+    }
   }
 
   function commitFromCurrent(buildNextState: (currentState: AwakenState) => AwakenState) {
@@ -268,6 +298,20 @@ function useAwakenStateModel() {
       profile: { ...currentState.profile, displayName: input.displayName.trim(), mainArcId: input.mainArcId, arcThemeId: input.arcThemeId }
     }));
   }
+
+  useEffect(() => {
+    function handleOnline() {
+      if (pendingSaveRef.current) scheduleCloudSave(0);
+    }
+
+    window.addEventListener("online", handleOnline);
+    return () => {
+      window.removeEventListener("online", handleOnline);
+      if (saveTimerRef.current !== null) window.clearTimeout(saveTimerRef.current);
+    };
+  // Save scheduling is ref-driven so multiple local changes collapse into one write.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -300,8 +344,13 @@ function useAwakenStateModel() {
     function rollCalendarForward() {
       const nextDate = getTodayQuestDate();
       const currentState = stateRef.current;
-      let nextState = rollDailyQuestsToDate(currentState, nextDate);
       const nextWeek = getCurrentWeekRange();
+
+      if (!shouldRollCalendarForward(currentState, nextDate, nextWeek.weekStartDate)) {
+        return;
+      }
+
+      let nextState = rollDailyQuestsToDate(currentState, nextDate);
 
       if (!isBossForCurrentWeek(nextState.activeBoss, nextWeek.weekStartDate)) {
         nextState = refreshWeeklyReport({
@@ -319,14 +368,28 @@ function useAwakenStateModel() {
       }
     }
 
-    const intervalId = window.setInterval(rollCalendarForward, 60_000);
+    let rolloverTimerId: number | null = null;
+    function scheduleNextRollover() {
+      const now = new Date();
+      const nextMidnight = new Date(now);
+      nextMidnight.setHours(24, 0, 2, 0);
+      rolloverTimerId = window.setTimeout(() => {
+        rollCalendarForward();
+        scheduleNextRollover();
+      }, Math.max(1_000, nextMidnight.getTime() - now.getTime()));
+    }
+
+    scheduleNextRollover();
     window.addEventListener("focus", rollCalendarForward);
-    document.addEventListener("visibilitychange", rollCalendarForward);
+    const handleVisibilityChange = () => {
+      if (document.visibilityState === "visible") rollCalendarForward();
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
 
     return () => {
-      window.clearInterval(intervalId);
+      if (rolloverTimerId !== null) window.clearTimeout(rolloverTimerId);
       window.removeEventListener("focus", rollCalendarForward);
-      document.removeEventListener("visibilitychange", rollCalendarForward);
+      document.removeEventListener("visibilitychange", handleVisibilityChange);
     };
   // Calendar rollover is intentionally driven from refs so it never uses stale state.
   // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -842,6 +905,14 @@ export function rollDailyQuestsToDate(state: AwakenState, today: string) {
     questDate: today,
     awardedQuestBonusMilestones: []
   };
+}
+
+export function shouldRollCalendarForward(
+  state: Pick<AwakenState, "questDate" | "activeBoss">,
+  today: string,
+  weekStartDate: string
+) {
+  return state.questDate !== today || !isBossForCurrentWeek(state.activeBoss, weekStartDate);
 }
 
 function createWeeklyBoss(

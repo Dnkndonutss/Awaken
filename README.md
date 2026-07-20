@@ -4,6 +4,8 @@ Awaken is a Next.js/TypeScript self-improvement RPG. Supabase Auth and PostgreSQ
 
 The structured schema, XP ledger, RLS, migration/rollback procedure, and discrepancy-repair guide are documented in [`docs/RELATIONAL_PERSISTENCE.md`](docs/RELATIONAL_PERSISTENCE.md).
 
+Production is hosted on Vercel at [https://awaken-tawny.vercel.app](https://awaken-tawny.vercel.app). Deployment, environment-variable, Supabase Auth, and release instructions are documented in [`docs/DEPLOYMENT.md`](docs/DEPLOYMENT.md).
+
 ## Required services
 
 Create a Supabase project and (optionally) a Google Gemini API key. Copy `.env.example` to `.env.local`; fill in the Supabase URL, anon key, server-only service-role key, and Gemini key. Never expose the service-role or Gemini keys with a `NEXT_PUBLIC_` prefix.

@@ -472,6 +472,32 @@ function useAwakenStateModel() {
     );
   }
 
+  function deleteCustomPositiveTask(taskId: string) {
+    if (!stateRef.current.customPositiveTasks.some((task) => task.id === taskId)) {
+      return;
+    }
+
+    commitFromCurrent((currentState) => ({
+      ...currentState,
+      customPositiveTasks: currentState.customPositiveTasks.filter(
+        (task) => task.id !== taskId
+      )
+    }));
+  }
+
+  function deleteCustomNegativeAction(actionId: string) {
+    if (!stateRef.current.customNegativeActions.some((action) => action.id === actionId)) {
+      return;
+    }
+
+    commitFromCurrent((currentState) => ({
+      ...currentState,
+      customNegativeActions: currentState.customNegativeActions.filter(
+        (action) => action.id !== actionId
+      )
+    }));
+  }
+
   function completeQuest(questId: string) {
     commitFromCurrent((currentState) =>
       applyQuestCompletionToState(currentState, questId)
@@ -628,6 +654,8 @@ function useAwakenStateModel() {
     recordPositiveTask,
     recordNegativeAction,
     recordManualTask,
+    deleteCustomPositiveTask,
+    deleteCustomNegativeAction,
     setArcTheme,
     updateProfileIdentity,
     completeQuest,

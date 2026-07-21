@@ -35,6 +35,7 @@ import {
   Sparkles,
   Skull,
   Swords,
+  Trash2,
   Users,
   WandSparkles
 } from "lucide-react";
@@ -675,7 +676,9 @@ function QuickTaskPanel({ compact = false }: Readonly<{ compact?: boolean }>) {
   const isBeserker = awaken.profile.arcThemeId === "berserker";
   const isMuse = awaken.profile.arcThemeId === "muse";
   const isFuturistic = awaken.profile.arcThemeId === "futuristic";
-  const tasks = compact ? awaken.positiveTasks.slice(0, 4) : awaken.positiveTasks;
+  const tasks = compact
+    ? orderActionsByRecentUse(awaken.positiveTasks, awaken.activityLog, "positive_task").slice(0, 4)
+    : awaken.positiveTasks;
   const { loggedId, showLogged } = useTransientLoggedId();
 
   return (
@@ -687,19 +690,39 @@ function QuickTaskPanel({ compact = false }: Readonly<{ compact?: boolean }>) {
         </span>
       </div>
       <div className={`mt-4 grid gap-3 overflow-y-auto pr-1 ${compact ? "max-h-80" : "max-h-[26rem]"}`}>
-        {tasks.map((task) => (
-          <ActionButton
-            key={task.id}
-            label={task.title}
-            meta={`${STAT_CATEGORY_LABELS[task.stat]} +${awaken.taskXpPreview[task.id]} XP`}
-            tone="positive"
-            active={loggedId === task.id}
-            action="positive"
-            onPress={() => showLogged(task.id)}
-            paramName="actionId"
-            paramValue={task.id}
-          />
-        ))}
+        {tasks.map((task) => {
+          const isCustom = awaken.customPositiveTasks.some((item) => item.id === task.id);
+
+          return (
+            <div className="flex items-stretch gap-2" key={task.id}>
+              <ActionButton
+                label={task.title}
+                meta={`${STAT_CATEGORY_LABELS[task.stat]} +${awaken.taskXpPreview[task.id]} XP`}
+                tone="positive"
+                active={loggedId === task.id}
+                action="positive"
+                onPress={() => showLogged(task.id)}
+                paramName="actionId"
+                paramValue={task.id}
+              />
+              {!compact && isCustom ? (
+                <button
+                  aria-label={`Delete ${task.title}`}
+                  className="shrink-0 rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-3 text-rose-200 transition hover:border-rose-200/50 hover:bg-rose-300/15"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${task.title}" from your task list? Your existing XP and activity history will be kept.`)) {
+                      awaken.deleteCustomPositiveTask(task.id);
+                    }
+                  }}
+                  title="Delete custom task"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={17} />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </Panel>
   );
@@ -713,7 +736,9 @@ function NegativeActionPanel({ compact = false }: Readonly<{ compact?: boolean }
   const isBeserker = awaken.profile.arcThemeId === "berserker";
   const isMuse = awaken.profile.arcThemeId === "muse";
   const isFuturistic = awaken.profile.arcThemeId === "futuristic";
-  const actions = compact ? awaken.negativeActions.slice(0, 4) : awaken.negativeActions;
+  const actions = compact
+    ? orderActionsByRecentUse(awaken.negativeActions, awaken.activityLog, "negative_action").slice(0, 4)
+    : awaken.negativeActions;
   const { loggedId, showLogged } = useTransientLoggedId();
 
   return (
@@ -725,19 +750,39 @@ function NegativeActionPanel({ compact = false }: Readonly<{ compact?: boolean }
         </span>
       </div>
       <div className={`mt-4 grid gap-3 overflow-y-auto pr-1 ${compact ? "max-h-80" : "max-h-[26rem]"}`}>
-        {actions.map((action) => (
-          <ActionButton
-            key={action.id}
-            label={action.title}
-            meta={`${STAT_CATEGORY_LABELS[action.stat]} -${action.xpPenalty} XP`}
-            tone="negative"
-            active={loggedId === action.id}
-            action="negative"
-            onPress={() => showLogged(action.id)}
-            paramName="actionId"
-            paramValue={action.id}
-          />
-        ))}
+        {actions.map((action) => {
+          const isCustom = awaken.customNegativeActions.some((item) => item.id === action.id);
+
+          return (
+            <div className="flex items-stretch gap-2" key={action.id}>
+              <ActionButton
+                label={action.title}
+                meta={`${STAT_CATEGORY_LABELS[action.stat]} -${action.xpPenalty} XP`}
+                tone="negative"
+                active={loggedId === action.id}
+                action="negative"
+                onPress={() => showLogged(action.id)}
+                paramName="actionId"
+                paramValue={action.id}
+              />
+              {!compact && isCustom ? (
+                <button
+                  aria-label={`Delete ${action.title}`}
+                  className="shrink-0 rounded-lg border border-rose-300/20 bg-rose-300/[0.06] px-3 text-rose-200 transition hover:border-rose-200/50 hover:bg-rose-300/15"
+                  onClick={() => {
+                    if (window.confirm(`Delete "${action.title}" from your action list? Your existing XP and activity history will be kept.`)) {
+                      awaken.deleteCustomNegativeAction(action.id);
+                    }
+                  }}
+                  title="Delete custom action"
+                  type="button"
+                >
+                  <Trash2 aria-hidden="true" size={17} />
+                </button>
+              ) : null}
+            </div>
+          );
+        })}
       </div>
     </Panel>
   );
@@ -1565,6 +1610,38 @@ function useTransientLoggedId() {
   }
 
   return { loggedId, showLogged };
+}
+
+function orderActionsByRecentUse<TItem extends { id: string }>(
+  items: TItem[],
+  activityLog: ActivityEvent[],
+  sourceType: "positive_task" | "negative_action"
+) {
+  const remainingItems = new globalThis.Map(
+    items.map((item) => [item.id, item] as const)
+  );
+  const recentItems: TItem[] = [];
+
+  for (const event of activityLog) {
+    if (event.kind !== "xp") {
+      continue;
+    }
+
+    const logEntry = event.result.logEntry;
+
+    if (logEntry.sourceType !== sourceType || !logEntry.sourceId) {
+      continue;
+    }
+
+    const item = remainingItems.get(logEntry.sourceId);
+
+    if (item) {
+      recentItems.push(item);
+      remainingItems.delete(logEntry.sourceId);
+    }
+  }
+
+  return [...recentItems, ...remainingItems.values()];
 }
 
 function ActionButton({

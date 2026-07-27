@@ -22,7 +22,7 @@ describe("relational state projection", () => {
   });
   it("rebuilds cached XP and level from the ledger", () => {
     const progress = deriveStatProgress(projectXpLedger([xpEvent("a", 400, "a"), xpEvent("b", -50, "b")]));
-    expect(progress.strength).toEqual({ currentXp: 350, level: 1 });
+    expect(progress.strength).toEqual({ currentXp: 350, level: 5 });
   });
   it("projects task, quest, and boss records deterministically", () => {
     const base = xpEvent("task-complete", 100, "task-1"); base.result.logEntry.sourceType = "positive_task";

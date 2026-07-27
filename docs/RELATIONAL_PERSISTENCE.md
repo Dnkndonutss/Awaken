@@ -29,7 +29,7 @@ RLS is enabled on every user-owned table. Policies require `auth.uid() = user_id
 
 ## XP derivation and reversals
 
-`xp_events` is authoritative. Current stat XP is `greatest(sum(xp_amount), 0)` grouped by owner and stat. Level is `floor(sqrt(xp / 100))`, matching `getLevelFromXp`. Overall XP is the sum of non-negative stat totals; rank uses the thresholds in `data/awaken-constants.ts`.
+`xp_events` is authoritative. Current stat XP is `greatest(sum(xp_amount), 0)` grouped by owner and stat. Levels use the capped 100-level curve in `getLevelFromXp`: `round(10 × level² + 0.075 × level³)` total XP is required for each level. The `set_awaken_cached_level` trigger applies the same curve whenever a relational stat cache is rebuilt. Overall XP is the sum of non-negative stat totals; rank uses the thresholds in `data/awaken-constants.ts`.
 
 An undo inserts a negative compensating event. It never changes or removes the original award. The insert trigger links `reversal_of` when a source ID ends in `-undo`. Initial migration inserts explicit `snapshot_reconciliation` entries when the retained activity window cannot fully explain an older cached total. `stat_progress` is rebuilt and timestamped after each successful projection.
 

@@ -20,5 +20,6 @@ export {
   getXpRequiredForLevel,
   logNegativeAction,
   logPositiveTask,
+  MAX_LEVEL,
   recalculateOverallProgress
 } from "@/lib/xp-engine";

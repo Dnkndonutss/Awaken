@@ -32,10 +32,18 @@ import {
 } from "@/lib/quest-engine";
 import { generateWeeklyReport } from "@/lib/weekly-report-engine";
 import {
+  applyRankMasteryProgression,
+  createRankMasteryState,
+  getRankMasteryProgress,
+  normalizeRankMasteryState
+} from "@/lib/rank-mastery";
+import {
   applyManualXp,
   calculatePositiveTaskXp,
+  getLevelFromXp,
   logNegativeAction,
-  logPositiveTask
+  logPositiveTask,
+  recalculateOverallProgress
 } from "@/lib/xp-engine";
 import type {
   DailyInsight,
@@ -44,7 +52,9 @@ import type {
   NegativeAction,
   PositiveTask,
   ReviewNegativeActionReason,
+  RankMasteryState,
   ArcThemeId,
+  AscensionChallenge,
   StatCategory,
   UserProfile,
   WeeklyBoss,
@@ -102,6 +112,7 @@ export type AwakenState = {
   dailyInsights: DailyInsight[];
   weeklyReports: WeeklyReport[];
   weeklyReflections: WeeklyReflection[];
+  rankMastery: RankMasteryState;
 };
 
 export type DailyReviewDraft = {
@@ -219,14 +230,23 @@ function useAwakenStateModel() {
       ),
       currentWeeklyReflection: state.weeklyReflections.find(
         (reflection) => reflection.weekStartDate === currentWeek.weekStartDate
-      )
+      ),
+      rankMasteryProgress: getRankMasteryProgress(state)
     };
   }, [state, today, currentWeek]);
 
   function commit(nextState: AwakenState) {
-    stateRef.current = nextState;
-    setState(nextState);
-    queueCloudSave(nextState);
+    const progressedState = applyRankMasteryProgression({
+      ...nextState,
+      rankMastery: normalizeRankMasteryState(
+        nextState.rankMastery,
+        nextState.profile.rankId,
+        nextState
+      )
+    });
+    stateRef.current = progressedState;
+    setState(progressedState);
+    queueCloudSave(progressedState);
   }
 
   function queueCloudSave(nextState: AwakenState) {
@@ -322,8 +342,9 @@ function useAwakenStateModel() {
         const cloud = await awakenRepository.load();
         if (cancelled) return;
         if (cloud) {
+          const currentProgressionState = normalizeProgression(cloud.state);
           revisionRef.current = cloud.revision;
-          stateRef.current = cloud.state; setState(cloud.state);
+          stateRef.current = currentProgressionState; setState(currentProgressionState);
           if (local) { setLegacyCandidate(local); setMigrationConflict(true); }
           setSyncStatus("saved");
           return;
@@ -641,6 +662,41 @@ function useAwakenStateModel() {
     });
   }
 
+  function saveAscensionChallenge(input: Pick<AscensionChallenge, "objective" | "successCriteria" | "targetDate" | "linkedStats">) {
+    const objective = input.objective.trim();
+    const successCriteria = input.successCriteria.trim();
+    if (!objective || !successCriteria || !input.targetDate || input.linkedStats.length === 0) return;
+
+    commitFromCurrent((currentState) => ({
+      ...currentState,
+      rankMastery: {
+        ...currentState.rankMastery,
+        ascensionChallenge: {
+          objective,
+          successCriteria,
+          targetDate: input.targetDate,
+          linkedStats: [...new Set(input.linkedStats)],
+          createdAt: currentState.rankMastery.ascensionChallenge?.createdAt ?? new Date().toISOString(),
+          completedAt: currentState.rankMastery.ascensionChallenge?.completedAt
+        }
+      }
+    }));
+  }
+
+  function completeAscensionChallenge() {
+    commitFromCurrent((currentState) => {
+      const challenge = currentState.rankMastery.ascensionChallenge;
+      if (!challenge || challenge.completedAt) return currentState;
+      return {
+        ...currentState,
+        rankMastery: {
+          ...currentState.rankMastery,
+          ascensionChallenge: { ...challenge, completedAt: new Date().toISOString() }
+        }
+      };
+    });
+  }
+
   function resetProgress() {
     const starterState = createStarterState(stateRef.current.profile.arcThemeId);
 
@@ -662,6 +718,8 @@ function useAwakenStateModel() {
     uncompleteQuest,
     saveDailyReview,
     saveWeeklyReport,
+    saveAscensionChallenge,
+    completeAscensionChallenge,
     resetProgress
     ,syncStatus,
     syncError,
@@ -788,11 +846,11 @@ function loadSavedState(): AwakenState | null {
     const arcThemeId = ARC_THEMES.some((theme) => theme.id === savedArcThemeId)
       ? savedArcThemeId
       : "minimal";
-    const profile = {
+    const profile = normalizeProfileProgression({
       ...parsed.profile,
       arcThemeId,
       disciplineXp: parsed.profile.disciplineXp ?? 0
-    };
+    });
     const activityLog = parsed.activityLog;
     const customPositiveTasks = Array.isArray(parsed.customPositiveTasks)
       ? parsed.customPositiveTasks
@@ -836,13 +894,49 @@ function loadSavedState(): AwakenState | null {
       dailyReviews,
       dailyInsights,
       weeklyReports: Array.isArray(parsed.weeklyReports) ? parsed.weeklyReports : [],
-      weeklyReflections
+      weeklyReflections,
+      rankMastery: createRankMasteryState(profile.rankId)
     };
 
-    return ensureCurrentWeeklyReport(baseState);
+    baseState.rankMastery = normalizeRankMasteryState(
+      parsed.rankMastery,
+      profile.rankId,
+      baseState
+    );
+
+    return applyRankMasteryProgression(ensureCurrentWeeklyReport(baseState));
   } catch {
     return null;
   }
+}
+
+function normalizeProgression(state: AwakenState): AwakenState {
+  const normalized = {
+    ...state,
+    profile: normalizeProfileProgression(state.profile),
+    rankMastery: normalizeRankMasteryState(state.rankMastery, state.profile.rankId, state)
+  };
+  return applyRankMasteryProgression(normalized);
+}
+
+function normalizeProfileProgression(profile: UserProfile): UserProfile {
+  const stats = profile.stats.map((statProgress) => {
+    const currentXp = Math.max(0, statProgress.currentXp);
+
+    return {
+      ...statProgress,
+      currentXp,
+      level: getLevelFromXp(currentXp)
+    };
+  });
+  const overallProgress = recalculateOverallProgress(stats);
+
+  return {
+    ...profile,
+    stats,
+    overallXp: overallProgress.overallXp,
+    overallLevel: overallProgress.overallLevel
+  };
 }
 
 export function createStarterState(
@@ -868,7 +962,8 @@ export function createStarterState(
     dailyReviews: [],
     dailyInsights: [],
     weeklyReports: [],
-    weeklyReflections: []
+    weeklyReflections: [],
+    rankMastery: createRankMasteryState(starterProfile.rankId)
   };
 
   return ensureCurrentWeeklyReport(state);

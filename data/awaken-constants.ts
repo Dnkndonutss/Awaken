@@ -66,11 +66,11 @@ export const DISCIPLINE_TIERS: DisciplineTier[] = [
 
 export const RANK_THRESHOLDS: Rank[] = [
   { id: "bronze", name: "Bronze", minLevel: 0 },
-  { id: "silver", name: "Silver", minLevel: 3 },
-  { id: "gold", name: "Gold", minLevel: 7 },
-  { id: "platinum", name: "Platinum", minLevel: 12 },
-  { id: "diamond", name: "Diamond", minLevel: 18 },
-  { id: "awakened", name: "Awakened", minLevel: 25 }
+  { id: "silver", name: "Silver", minLevel: 12 },
+  { id: "gold", name: "Gold", minLevel: 28 },
+  { id: "platinum", name: "Platinum", minLevel: 48 },
+  { id: "diamond", name: "Diamond", minLevel: 72 },
+  { id: "awakened", name: "Awakened", minLevel: 100 }
 ];
 
 export const ARC_THEMES: ArcTheme[] = [

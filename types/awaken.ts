@@ -125,6 +125,21 @@ export type UserProfile = {
   createdAt: string;
 };
 
+export type AscensionChallenge = {
+  objective: string;
+  successCriteria: string;
+  targetDate: string;
+  linkedStats: StatCategory[];
+  createdAt: string;
+  completedAt?: string;
+};
+
+export type RankMasteryState = {
+  earnedRankIds: RankId[];
+  activeDates: string[];
+  ascensionChallenge?: AscensionChallenge;
+};
+
 export type DailyQuestType =
   | "main"
   | "arc"

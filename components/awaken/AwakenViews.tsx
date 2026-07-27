@@ -59,7 +59,7 @@ import {
   type WeeklyReflectionDraft,
   useAwakenState
 } from "@/hooks/use-awaken-state";
-import { getRankIdForLevel, getXpRequiredForLevel } from "@/lib/xp-engine";
+import { getRankIdForLevel, getXpRequiredForLevel, MAX_LEVEL } from "@/lib/xp-engine";
 import { WEEKLY_BOSS_ROSTER } from "@/lib/boss-engine";
 import { KnightFrame, type KnightFrameVariant } from "@/components/KnightFrame";
 import { RadarMap } from "@/components/RadarMap";
@@ -68,6 +68,7 @@ import type {
   DailyReview,
   ReviewNegativeActionReason,
   ArcThemeId,
+  RankId,
   StatCategory,
   WeeklyBoss,
   WeeklyReport
@@ -154,8 +155,8 @@ export function HomeView() {
   );
   const rankProgress = getRankProgress(
     awaken.profile.overallXp,
-    awaken.profile.overallLevel,
-    awaken.profile.arcThemeId
+    awaken.profile.arcThemeId,
+    awaken.profile.rankId
   );
 
   return (
@@ -177,15 +178,21 @@ export function HomeView() {
           </div>
           <div className="mt-7">
             <ProgressBar
-              detail={`${overallProgress.current} / ${overallProgress.needed} XP`}
-              label={`Progress to level ${awaken.profile.overallLevel + 1}`}
+              detail={overallProgress.isMaxLevel
+                ? `${awaken.profile.overallXp.toLocaleString()} total XP`
+                : `${overallProgress.current} / ${overallProgress.needed} XP`}
+              label={overallProgress.isMaxLevel
+                ? `Level ${MAX_LEVEL} — maximum level`
+                : `Progress to level ${awaken.profile.overallLevel + 1}`}
               value={overallProgress.percent}
             />
           </div>
           <div className="mt-5">
             <ProgressBar
               detail={rankProgress.next
-                ? `${rankProgress.remainingXp.toLocaleString()} ${arcTheme.labels.xpName} remaining`
+                ? awaken.rankMasteryProgress.levelReached && !awaken.rankMasteryProgress.requirementsComplete
+                  ? `${getMasteryTrialName(awaken.profile.arcThemeId)} remaining`
+                  : `${rankProgress.remainingXp.toLocaleString()} ${arcTheme.labels.xpName} remaining`
                 : "Highest rank achieved"}
               label={rankProgress.next
                 ? `${rankProgress.currentName} → ${rankProgress.nextName} at level ${rankProgress.next.minLevel}`
@@ -322,8 +329,8 @@ function RankLadderPanel() {
   const arcTheme = getCurrentArcTheme(awaken.profile.arcThemeId);
   const progress = getRankProgress(
     awaken.profile.overallXp,
-    awaken.profile.overallLevel,
-    awaken.profile.arcThemeId
+    awaken.profile.arcThemeId,
+    awaken.profile.rankId
   );
 
   return (
@@ -343,7 +350,9 @@ function RankLadderPanel() {
       <div className="mt-5">
         <ProgressBar
           detail={progress.next
-            ? `${progress.remainingXp.toLocaleString()} ${arcTheme.labels.xpName} remaining`
+            ? awaken.rankMasteryProgress.levelReached && !awaken.rankMasteryProgress.requirementsComplete
+              ? `${getMasteryTrialName(awaken.profile.arcThemeId)} remaining`
+              : `${progress.remainingXp.toLocaleString()} ${arcTheme.labels.xpName} remaining`
             : "All ranks unlocked"}
           label={progress.next
             ? `Next: ${progress.nextName} · Level ${progress.next.minLevel} · ${progress.nextXp.toLocaleString()} total XP`
@@ -351,6 +360,8 @@ function RankLadderPanel() {
           value={progress.percent}
         />
       </div>
+
+      <RankMasteryPanel />
 
       <div className="mt-6 overflow-x-auto rounded-lg border border-white/10">
         <table className="min-w-[980px] w-full border-collapse text-left text-sm">
@@ -389,6 +400,129 @@ function RankLadderPanel() {
       </div>
     </Panel>
   );
+}
+
+function RankMasteryPanel() {
+  const awaken = useAwakenState();
+  const progress = awaken.rankMasteryProgress;
+  const theme = getCurrentArcTheme(awaken.profile.arcThemeId);
+
+  if (!progress.nextRankId || !progress.requiredLevel) {
+    return (
+      <div className="app-card app-inset-card mt-6 rounded-lg border border-emerald-300/20 bg-emerald-300/[0.06] p-5">
+        <p className="font-semibold text-emerald-100">All mastery trials complete</p>
+        <p className="mt-1 text-sm text-slate-400">You have earned the highest rank in this path.</p>
+      </div>
+    );
+  }
+
+  const nextName = theme.rankNames[progress.nextRankId];
+  const trialName = getMasteryTrialName(awaken.profile.arcThemeId);
+
+  return (
+    <div className="app-card app-inset-card mt-6 rounded-lg border border-cyan-300/20 bg-cyan-300/[0.04] p-5">
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">{trialName}</p>
+          <h3 className="mt-1 text-lg font-bold text-white">Promotion to {nextName}</h3>
+          <p className="mt-1 text-sm text-slate-400">Your level can keep rising while this trial is in progress. Earned ranks are permanent.</p>
+        </div>
+        <span className={`rounded-md px-3 py-2 text-xs font-semibold ${progress.levelReached ? "bg-emerald-300/10 text-emerald-200" : "bg-white/[0.06] text-slate-300"}`}>
+          Level {progress.requiredLevel} {progress.levelReached ? "reached" : "required"}
+        </span>
+      </div>
+
+      {progress.requirements.length === 0 ? (
+        <div className="mt-4 flex items-center gap-3 rounded-lg border border-white/10 bg-white/[0.04] p-4 text-sm text-slate-300">
+          <CheckCircle2 className={progress.levelReached ? "text-emerald-200" : "text-slate-600"} size={20} />
+          Silver promotion is automatic when you reach Level {progress.requiredLevel}.
+        </div>
+      ) : (
+        <div className="mt-4 grid gap-3 sm:grid-cols-2">
+          {progress.requirements.map((requirement) => (
+            <div className={`rounded-lg border p-4 ${requirement.complete ? "border-emerald-300/20 bg-emerald-300/[0.06]" : "border-white/10 bg-white/[0.04]"}`} key={requirement.id}>
+              <div className="flex items-start gap-3">
+                <CheckCircle2 className={requirement.complete ? "text-emerald-200" : "text-slate-600"} size={19} />
+                <div className="min-w-0">
+                  <p className="font-semibold text-white">{requirement.label}</p>
+                  <p className="mt-1 text-sm text-slate-400">{Math.min(requirement.current, requirement.target)} / {requirement.target}</p>
+                </div>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {progress.nextRankId === "awakened" ? <AscensionChallengePanel /> : null}
+    </div>
+  );
+}
+
+function AscensionChallengePanel() {
+  const awaken = useAwakenState();
+  const challenge = awaken.rankMastery.ascensionChallenge;
+  const [objective, setObjective] = useState(challenge?.objective ?? "");
+  const [successCriteria, setSuccessCriteria] = useState(challenge?.successCriteria ?? "");
+  const [targetDate, setTargetDate] = useState(challenge?.targetDate ?? "");
+  const [linkedStats, setLinkedStats] = useState<StatCategory[]>(challenge?.linkedStats ?? []);
+
+  function toggleStat(stat: StatCategory) {
+    setLinkedStats((current) => current.includes(stat)
+      ? current.filter((item) => item !== stat)
+      : [...current, stat]);
+  }
+
+  return (
+    <div className="mt-5 border-t border-white/10 pt-5">
+      <div>
+        <p className="font-semibold text-white">Final Ascension Challenge</p>
+        <p className="mt-1 text-sm text-slate-400">Define one meaningful real-world objective and its exact completion standard.</p>
+      </div>
+      <div className="mt-4 grid gap-4">
+        <TextInputField label="Objective" placeholder="Ship a major project" value={objective} onChange={setObjective} />
+        <TextAreaField label="What counts as complete?" value={successCriteria} onChange={setSuccessCriteria} />
+        <label className="grid gap-2 text-sm">
+          <span className="font-semibold text-slate-300">Target date</span>
+          <input className="min-h-11 rounded-md border border-white/10 bg-[#080b12] px-3 text-slate-100 outline-none focus:border-cyan-200/60" onChange={(event) => setTargetDate(event.target.value)} type="date" value={targetDate} />
+        </label>
+        <fieldset>
+          <legend className="text-sm font-semibold text-slate-300">Linked stats</legend>
+          <div className="mt-2 flex flex-wrap gap-2">
+            {STAT_CATEGORIES.map((stat) => (
+              <label className={`cursor-pointer rounded-md border px-3 py-2 text-sm ${linkedStats.includes(stat) ? "border-cyan-200/50 bg-cyan-300/10 text-cyan-100" : "border-white/10 text-slate-400"}`} key={stat}>
+                <input checked={linkedStats.includes(stat)} className="sr-only" onChange={() => toggleStat(stat)} type="checkbox" />
+                {STAT_CATEGORY_LABELS[stat]}
+              </label>
+            ))}
+          </div>
+        </fieldset>
+        <div className="flex flex-wrap gap-3">
+          <button className="primary-button cyan" disabled={!objective.trim() || !successCriteria.trim() || !targetDate || linkedStats.length === 0} onClick={() => awaken.saveAscensionChallenge({ objective, successCriteria, targetDate, linkedStats })} type="button">
+            <Save size={16} /> {challenge ? "Update Challenge" : "Save Challenge"}
+          </button>
+          {challenge && !challenge.completedAt ? (
+            <button className="primary-button amber" onClick={awaken.completeAscensionChallenge} type="button">
+              <CheckCircle2 size={16} /> Mark Complete
+            </button>
+          ) : null}
+          {challenge?.completedAt ? <span className="self-center text-sm font-semibold text-emerald-200">Challenge completed</span> : null}
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function getMasteryTrialName(themeId: ArcThemeId) {
+  const names: Record<ArcThemeId, string> = {
+    minimal: "Rank Requirement",
+    knight: "Promotion Trial",
+    mage: "Mastery Ritual",
+    anime_dark: "Awakening Mission",
+    berserker: "Trial of Strength",
+    muse: "Creative Rite",
+    futuristic: "Authorization Protocol"
+  };
+  return names[themeId];
 }
 
 export function TasksView() {
@@ -634,15 +768,16 @@ export function AnalyticsView() {
       <Panel>
         <SectionTitle icon={<Radar size={18} />} title={`${arcTheme.labels.xpName} Radar Map`} />
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          The outer edge represents your strongest stat. The shape updates whenever XP changes, making balance and weak spots easy to see.
+          The center represents Level 0 and the outer edge represents Level 100. Every stat uses the same absolute scale.
         </p>
         <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)] lg:items-center">
           <RadarMap
             ariaLabel="Current Awaken stat XP radar map"
+            maximumValue={MAX_LEVEL}
             data={statAnalytics.map((item) => ({
               id: item.stat,
               label: STAT_CATEGORY_LABELS[item.stat],
-              value: item.xp,
+              value: item.level,
               displayValue: `${item.xp.toLocaleString()} XP, level ${item.level}`
             }))}
           />
@@ -1179,6 +1314,7 @@ function StatRadarPanel() {
       <div className="grid gap-6 lg:grid-cols-[320px_1fr] lg:items-center">
         <RadarMap
           ariaLabel="Current stat level radar map"
+          maximumValue={MAX_LEVEL}
           data={statLevels.map((item) => ({
             id: item.stat,
             label: STAT_CATEGORY_LABELS[item.stat],
@@ -1779,12 +1915,10 @@ function EmptyState({ text }: Readonly<{ text: string }>) {
   );
 }
 
-function getRankProgress(totalXp: number, level: number, themeId: ArcThemeId) {
+function getRankProgress(totalXp: number, themeId: ArcThemeId, earnedRankId: RankId) {
   const theme = getCurrentArcTheme(themeId);
-  const currentIndex = RANK_THRESHOLDS.reduce(
-    (matchedIndex, rank, index) => level >= rank.minLevel ? index : matchedIndex,
-    0
-  );
+  const earnedIndex = RANK_THRESHOLDS.findIndex((rank) => rank.id === earnedRankId);
+  const currentIndex = Math.max(0, earnedIndex);
   const current = RANK_THRESHOLDS[currentIndex] ?? RANK_THRESHOLDS[0];
   const next = RANK_THRESHOLDS[currentIndex + 1];
 
@@ -1809,12 +1943,21 @@ function getRankProgress(totalXp: number, level: number, themeId: ArcThemeId) {
 }
 
 function getLevelProgress(totalXp: number, level: number) {
+  if (level >= MAX_LEVEL) {
+    return { current: 0, needed: 0, percent: 100, isMaxLevel: true };
+  }
+
   const currentLevelXp = getXpRequiredForLevel(level);
   const nextLevelXp = getXpRequiredForLevel(level + 1);
   const current = Math.max(0, totalXp - currentLevelXp);
   const needed = Math.max(1, nextLevelXp - currentLevelXp);
 
-  return { current, needed, percent: Math.round((current / needed) * 100) };
+  return {
+    current,
+    needed,
+    percent: Math.min(100, Math.round((current / needed) * 100)),
+    isMaxLevel: false
+  };
 }
 
 function getCurrentArcTheme(arcThemeId: ArcThemeId) {

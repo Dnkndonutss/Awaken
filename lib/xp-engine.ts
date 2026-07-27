@@ -17,18 +17,30 @@ import type {
 } from "@/types/awaken";
 
 const MINIMUM_LEVEL = 0;
-const XP_PER_LEVEL_STEP = 100;
+export const MAX_LEVEL = 100;
+const QUADRATIC_XP_FACTOR = 10;
+const CUBIC_XP_FACTOR = 0.075;
 
 export function getXpRequiredForLevel(level: number) {
-  const safeLevel = Math.max(MINIMUM_LEVEL, Math.floor(level));
-  return safeLevel * safeLevel * XP_PER_LEVEL_STEP;
+  const safeLevel = Math.min(
+    MAX_LEVEL,
+    Math.max(MINIMUM_LEVEL, Math.floor(level))
+  );
+
+  return Math.round(
+    QUADRATIC_XP_FACTOR * safeLevel * safeLevel +
+    CUBIC_XP_FACTOR * safeLevel * safeLevel * safeLevel
+  );
 }
 
 export function getLevelFromXp(xp: number) {
   const safeXp = Math.max(0, Math.floor(xp));
   let level = MINIMUM_LEVEL;
 
-  while (safeXp >= getXpRequiredForLevel(level + 1)) {
+  while (
+    level < MAX_LEVEL &&
+    safeXp >= getXpRequiredForLevel(level + 1)
+  ) {
     level += 1;
   }
 
@@ -191,7 +203,9 @@ function applyXpChange({
     stats: updatedStats,
     overallXp: overallProgress.overallXp,
     overallLevel: overallProgress.overallLevel,
-    rankId: overallProgress.rankId
+    // Rank promotion is handled by the mastery engine. XP changes never demote
+    // an already earned rank or bypass a pending mastery trial.
+    rankId: profile.rankId
   };
 
   const logEntry: XPLogEntry = {
@@ -213,7 +227,7 @@ function applyXpChange({
     leveledDown: newStatLevel < oldStatLevel,
     updatedOverallXp: overallProgress.overallXp,
     updatedOverallLevel: overallProgress.overallLevel,
-    updatedRankId: overallProgress.rankId,
+    updatedRankId: updatedProfile.rankId,
     logEntry,
     updatedProfile
   };

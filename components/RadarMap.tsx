@@ -8,6 +8,7 @@ type RadarMapDatum = {
 type RadarMapProps = {
   ariaLabel: string;
   data: RadarMapDatum[];
+  maximumValue?: number;
 };
 
 const chartSize = 280;
@@ -15,8 +16,11 @@ const center = chartSize / 2;
 const radius = 96;
 const ringScales = [0.25, 0.5, 0.75, 1];
 
-export function RadarMap({ ariaLabel, data }: Readonly<RadarMapProps>) {
-  const maxValue = Math.max(1, ...data.map((item) => Math.max(0, item.value)));
+export function RadarMap({ ariaLabel, data, maximumValue }: Readonly<RadarMapProps>) {
+  const maxValue = Math.max(
+    1,
+    maximumValue ?? Math.max(...data.map((item) => Math.max(0, item.value)))
+  );
   const areaPoints = data
     .map((item, index) => {
       const point = getPoint(index, data.length, Math.max(0, item.value) / maxValue);
@@ -29,7 +33,9 @@ export function RadarMap({ ariaLabel, data }: Readonly<RadarMapProps>) {
       <svg aria-label={ariaLabel} className="h-full w-full overflow-visible" role="img" viewBox={`0 0 ${chartSize} ${chartSize}`}>
         <title>{ariaLabel}</title>
         <desc>
-          A five-axis radar map. Values farther from the center are stronger relative to the other displayed stats.
+          {maximumValue
+            ? `A five-axis radar map. The center is 0 and the outer edge is ${maximumValue}.`
+            : "A five-axis radar map. Values are scaled relative to the largest displayed value."}
         </desc>
         {ringScales.map((scale) => (
           <polygon

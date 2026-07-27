@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { AwakenState } from "@/hooks/use-awaken-state";
 
-export const CURRENT_DATA_VERSION = 4;
+export const CURRENT_DATA_VERSION = 5;
 export const LEGACY_STORAGE_KEYS = ["awaken:dashboard-state:v2", "awaken:mvp-dashboard-state:v1"] as const;
 
 const stateShape = z.object({

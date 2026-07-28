@@ -21,9 +21,14 @@ export function RadarMap({ ariaLabel, data, maximumValue }: Readonly<RadarMapPro
     1,
     maximumValue ?? Math.max(...data.map((item) => Math.max(0, item.value)))
   );
+  const getScale = (value: number) => {
+    const progress = Math.min(1, Math.max(0, value) / maxValue);
+
+    return maximumValue ? Math.sqrt(progress) : progress;
+  };
   const areaPoints = data
     .map((item, index) => {
-      const point = getPoint(index, data.length, Math.max(0, item.value) / maxValue);
+      const point = getPoint(index, data.length, getScale(item.value));
       return `${point.x},${point.y}`;
     })
     .join(" ");
@@ -34,7 +39,7 @@ export function RadarMap({ ariaLabel, data, maximumValue }: Readonly<RadarMapPro
         <title>{ariaLabel}</title>
         <desc>
           {maximumValue
-            ? `A five-axis radar map. The center is 0 and the outer edge is ${maximumValue}.`
+            ? `A five-axis radar map using a square-root scale so early progress remains visible. The center is 0 and the outer edge is ${maximumValue}.`
             : "A five-axis radar map. Values are scaled relative to the largest displayed value."}
         </desc>
         {ringScales.map((scale) => (
@@ -81,7 +86,7 @@ export function RadarMap({ ariaLabel, data, maximumValue }: Readonly<RadarMapPro
           strokeWidth="2.5"
         />
         {data.map((item, index) => {
-          const point = getPoint(index, data.length, Math.max(0, item.value) / maxValue);
+          const point = getPoint(index, data.length, getScale(item.value));
 
           return (
             <circle

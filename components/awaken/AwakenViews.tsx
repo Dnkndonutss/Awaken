@@ -768,7 +768,7 @@ export function AnalyticsView() {
       <Panel>
         <SectionTitle icon={<Radar size={18} />} title={`${arcTheme.labels.xpName} Radar Map`} />
         <p className="mt-2 max-w-2xl text-sm leading-6 text-slate-400">
-          The center represents Level 0 and the outer edge represents Level 100. Every stat uses the same absolute scale.
+          The center represents Level 0 and the outer edge represents Level 100. A square-root scale keeps early-level differences visible while every stat remains relative to the same maximum.
         </p>
         <div className="mt-5 grid gap-6 lg:grid-cols-[minmax(280px,0.85fr)_minmax(0,1.15fr)] lg:items-center">
           <RadarMap
@@ -1446,7 +1446,7 @@ function DailyInsightPanel() {
       <div className="mt-4">
         {awaken.todayInsight ? (
           <div className="rounded-lg border border-violet-300/20 bg-violet-300/10 p-5">
-            <p className="text-sm leading-7 text-violet-50">{awaken.todayInsight.summary}</p>
+            <p className="text-sm leading-7 text-white">{awaken.todayInsight.summary}</p>
           </div>
         ) : (
           <EmptyState text="Save today's review to generate the System insight." />

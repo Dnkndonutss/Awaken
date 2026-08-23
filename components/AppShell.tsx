@@ -62,7 +62,7 @@ function ThemedAppShell({ children }: Readonly<{ children: React.ReactNode }>) {
 
   return (
       <div
-        className={`awaken-theme ${arcTheme.className} min-h-screen bg-[#080b12] text-slate-100`}
+        className={`awaken-theme ${arcTheme.className} min-h-screen w-full max-w-full overflow-x-hidden bg-[#080b12] text-slate-100`}
         style={{ "--shadow-aura": Math.min(0.24 + awaken.profile.overallLevel * 0.025, 0.62) } as React.CSSProperties}
       >
         <aside className="app-sidebar fixed inset-y-0 left-0 z-20 hidden w-64 border-r border-white/10 bg-[#0c111d]/95 px-4 py-5 lg:block">
@@ -104,7 +104,7 @@ function ThemedAppShell({ children }: Readonly<{ children: React.ReactNode }>) {
             })}
           </nav>
         </aside>
-        <div className="lg:pl-64">
+        <div className="min-w-0 lg:pl-64">
           <header className="app-topbar sticky top-0 z-10 border-b border-white/10 bg-[#080b12]/90 px-4 py-3 backdrop-blur lg:hidden">
             <div className="mb-3 flex items-center justify-between">
               <div>
@@ -138,7 +138,7 @@ function ThemedAppShell({ children }: Readonly<{ children: React.ReactNode }>) {
               })}
             </nav>
           </header>
-          <main className="px-4 py-5 sm:px-8 lg:px-10">{children}</main>
+          <main className="min-w-0 px-4 py-5 sm:px-8 lg:px-10">{children}</main>
         </div>
         <AwakenCelebrations />
         <AwakenTutorial />

@@ -555,9 +555,9 @@ export function TasksView() {
             : "Log positive tasks and negative actions. This updates XP, quests, bosses, and reports."
         }
       />
-      <section className="grid gap-4 rounded-xl lg:grid-cols-2">
-        <div data-tour="positive-tasks" className="rounded-xl"><QuickTaskPanel /></div>
-        <div data-tour="negative-actions" className="rounded-xl"><NegativeActionPanel /></div>
+      <section className="grid min-w-0 gap-4 rounded-xl lg:grid-cols-2">
+        <div data-tour="positive-tasks" className="min-w-0 rounded-xl"><QuickTaskPanel /></div>
+        <div data-tour="negative-actions" className="min-w-0 rounded-xl"><NegativeActionPanel /></div>
       </section>
       <ManualTaskPanel />
       <ActivityLogPanel />
@@ -818,9 +818,9 @@ function QuickTaskPanel({ compact = false }: Readonly<{ compact?: boolean }>) {
 
   return (
     <Panel variant="standard-card">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SectionTitle icon={<Plus size={18} />} title={isKnight ? "Honorable Duties" : isMage ? "Prepared Spells" : isShadowborne ? "Active Missions" : isBeserker ? "Training Drills" : isMuse ? "Creative Practices" : isFuturistic ? "Active Protocols" : "Positive Tasks"} />
-        <span className="rounded-md bg-emerald-300/10 px-2.5 py-1 text-xs font-semibold text-emerald-100">
+        <span className="max-w-full rounded-md bg-emerald-300/10 px-2.5 py-1 text-xs font-semibold text-emerald-100 sm:shrink-0">
           +{awaken.positiveXpTotal} {isKnight ? "Renown" : isMage ? "Mana" : isShadowborne ? "Power" : isBeserker ? "Rage" : isMuse ? "Radiance" : isFuturistic ? "Charge" : "XP"} logged
         </span>
       </div>
@@ -829,7 +829,7 @@ function QuickTaskPanel({ compact = false }: Readonly<{ compact?: boolean }>) {
           const isCustom = awaken.customPositiveTasks.some((item) => item.id === task.id);
 
           return (
-            <div className="flex items-stretch gap-2" key={task.id}>
+            <div className="flex min-w-0 items-stretch gap-2" key={task.id}>
               <ActionButton
                 label={task.title}
                 meta={`${STAT_CATEGORY_LABELS[task.stat]} +${awaken.taskXpPreview[task.id]} XP`}
@@ -878,9 +878,9 @@ function NegativeActionPanel({ compact = false }: Readonly<{ compact?: boolean }
 
   return (
     <Panel variant="standard-card">
-      <div className="flex items-center justify-between gap-3">
+      <div className="flex min-w-0 flex-col items-start gap-3 sm:flex-row sm:items-center sm:justify-between">
         <SectionTitle icon={<Minus size={18} />} title={isKnight ? "Broken Vows" : isMage ? "Disrupted Rituals" : isShadowborne ? "Corruption" : isBeserker ? "Weaknesses" : isMuse ? "Creative Blocks" : isFuturistic ? "System Errors" : "Negative Actions"} />
-        <span className="rounded-md bg-rose-300/10 px-2.5 py-1 text-xs font-semibold text-rose-100">
+        <span className="max-w-full rounded-md bg-rose-300/10 px-2.5 py-1 text-xs font-semibold text-rose-100 sm:shrink-0">
           -{awaken.negativeXpTotal} {isKnight ? "Renown" : isMage ? "Mana" : isShadowborne ? "Power" : isBeserker ? "Rage" : isMuse ? "Radiance" : isFuturistic ? "Charge" : "XP"} logged
         </span>
       </div>
@@ -889,7 +889,7 @@ function NegativeActionPanel({ compact = false }: Readonly<{ compact?: boolean }
           const isCustom = awaken.customNegativeActions.some((item) => item.id === action.id);
 
           return (
-            <div className="flex items-stretch gap-2" key={action.id}>
+            <div className="flex min-w-0 items-stretch gap-2" key={action.id}>
               <ActionButton
                 label={action.title}
                 meta={`${STAT_CATEGORY_LABELS[action.stat]} -${action.xpPenalty} XP`}
@@ -1636,7 +1636,7 @@ function ActivityLogRow({ event }: Readonly<{ event: ActivityEvent }>) {
 }
 
 function PageStack({ children }: Readonly<{ children: React.ReactNode }>) {
-  return <div className="app-page-stack mx-auto flex max-w-7xl flex-col gap-5">{children}</div>;
+  return <div className="app-page-stack mx-auto flex w-full min-w-0 max-w-7xl flex-col gap-5">{children}</div>;
 }
 
 function PageHeader({
@@ -1669,7 +1669,7 @@ function Panel({
   return (
     <KnightFrame
       as="section"
-      className="app-panel rounded-lg border border-white/10 bg-[#111827]/80 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
+      className="app-panel w-full min-w-0 max-w-full rounded-lg border border-white/10 bg-[#111827]/80 p-5 shadow-[0_24px_70px_rgba(0,0,0,0.35)]"
       variant={variant}
     >
       {children}
@@ -1813,15 +1813,15 @@ function ActionButton({
       <input name="awakenAction" type="hidden" value={action} />
       <input name={paramName} type="hidden" value={paramValue} />
       <button
-        className={`action-button action-button--${tone} ${active ? "is-active" : ""} flex min-h-14 w-full items-center justify-between gap-4 rounded-lg border bg-white/[0.03] px-4 py-3 text-left transition ${toneClasses}`}
+        className={`action-button action-button--${tone} ${active ? "is-active" : ""} flex min-h-14 w-full min-w-0 flex-col items-start justify-center gap-1 rounded-lg border bg-white/[0.03] px-4 py-3 text-left transition sm:flex-row sm:items-center sm:justify-between sm:gap-4 ${toneClasses}`}
         onClick={onPress}
         type="submit"
       >
-        <span className="flex min-w-0 items-center gap-2 font-medium text-white">
+        <span className="flex min-w-0 max-w-full items-center gap-2 font-medium text-white sm:flex-1">
           {active ? <CheckCircle2 className="shrink-0 text-emerald-100" size={16} /> : null}
           <span className="truncate">{label}</span>
         </span>
-        <span className="shrink-0 text-sm text-slate-400">{active ? "Logged" : meta}</span>
+        <span className="max-w-full text-sm text-slate-400 sm:shrink-0">{active ? "Logged" : meta}</span>
       </button>
     </form>
   );

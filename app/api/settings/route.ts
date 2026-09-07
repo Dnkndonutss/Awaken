@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server";
 import { createClient } from "@/lib/supabase/server";
-import { onboardingInputSchema, ONBOARDING_DATA_VERSION } from "@/lib/onboarding";
+import { onboardingInputSchema, ONBOARDING_DATA_VERSION, toOnboardingSettingsRow } from "@/lib/onboarding";
 
 async function context() { const supabase = await createClient(); const { data: { user } } = await supabase.auth.getUser(); return { supabase, user }; }
 
@@ -39,7 +39,7 @@ export async function PUT(request: Request) {
 }
 
 export function toRow(userId: string, value: ReturnType<typeof onboardingInputSchema.parse>, permission = "default") {
-  return { user_id: userId, onboarding_status: "complete", onboarding_data_version: ONBOARDING_DATA_VERSION, display_name: value.displayName, primary_goal: value.primaryGoal, motivation: value.motivation, target_timeframe: value.targetTimeframe, preset_id: value.presetId, main_arc_id: value.mainArcId, arc_theme_id: value.arcThemeId, prioritized_categories: value.categories, difficulty: value.difficulty, daily_reset_time: value.dailyResetTime, time_zone: value.timeZone, active_days: value.activeDays, reminders_enabled: value.remindersEnabled, reminder_times: value.reminderTimes, reminder_types: value.reminderTypes, preferred_tasks: value.tasks, appearance: { theme: value.theme }, notification_permission: permission, updated_at: new Date().toISOString() };
+  return toOnboardingSettingsRow(userId, value, permission);
 }
 function fromRow(row: Record<string, unknown>) { return { onboardingStatus: row.onboarding_status, onboardingCompletedAt: row.onboarding_completed_at, onboardingDataVersion: row.onboarding_data_version, displayName: row.display_name, primaryGoal: row.primary_goal, motivation: row.motivation, targetTimeframe: row.target_timeframe, presetId: row.preset_id, mainArcId: row.main_arc_id, arcThemeId: row.arc_theme_id, categories: row.prioritized_categories, tasks: row.preferred_tasks, difficulty: row.difficulty, dailyResetTime: String(row.daily_reset_time).slice(0,5), timeZone: row.time_zone, activeDays: row.active_days, remindersEnabled: row.reminders_enabled, reminderTimes: row.reminder_times, reminderTypes: row.reminder_types, theme: (row.appearance as {theme?: string})?.theme ?? "minimal", notificationPermission: row.notification_permission };
 }

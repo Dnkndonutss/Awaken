@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canReplaceStateForOnboarding, defaultOnboardingDraft, onboardingInputSchema } from "./onboarding";
+import { canReplaceStateForOnboarding, defaultOnboardingDraft, hasCompletedOnboarding, onboardingInputSchema } from "./onboarding";
 
 describe("onboarding preferences", () => {
   it("starts new users without an inherited identity or category", () => { const draft = defaultOnboardingDraft(); expect(draft.displayName).toBe(""); expect(draft.categories).toEqual([]); });
@@ -12,5 +12,11 @@ describe("onboarding preferences", () => {
     expect(canReplaceStateForOnboarding({ profile: { displayName: "Seeker" }, activityLog: [] })).toBe(true);
     expect(canReplaceStateForOnboarding({ profile: { displayName: "Seeker" }, activityLog: [{ id: "earned-xp" }] })).toBe(false);
     expect(canReplaceStateForOnboarding({ profile: { displayName: "Player" }, activityLog: [] })).toBe(false);
+  });
+  it("treats existing progress as complete when its metadata row is missing", () => {
+    expect(hasCompletedOnboarding(null, { profile: { displayName: "Raiyan" }, activityLog: [] })).toBe(true);
+  });
+  it("still sends a pristine starter snapshot through onboarding", () => {
+    expect(hasCompletedOnboarding(null, { profile: { displayName: "Seeker" }, activityLog: [] })).toBe(false);
   });
 });

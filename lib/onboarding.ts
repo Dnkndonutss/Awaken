@@ -47,3 +47,43 @@ export function canReplaceStateForOnboarding(input: unknown): boolean {
   const state = input as { profile?: { displayName?: unknown }; activityLog?: unknown };
   return state.profile?.displayName === "Seeker" && Array.isArray(state.activityLog) && state.activityLog.length === 0;
 }
+
+export function hasCompletedOnboarding(status: unknown, state: unknown): boolean {
+  if (status === "complete") return true;
+  // A non-starter snapshot is authoritative evidence that this account already
+  // completed setup. Protect it even when older completion metadata is missing.
+  return Boolean(state) && !canReplaceStateForOnboarding(state);
+}
+
+export function toOnboardingSettingsRow(
+  userId: string,
+  value: OnboardingInput,
+  permission = "default"
+) {
+  const now = new Date().toISOString();
+  return {
+    user_id: userId,
+    onboarding_status: "complete" as const,
+    onboarding_completed_at: now,
+    onboarding_data_version: ONBOARDING_DATA_VERSION,
+    display_name: value.displayName,
+    primary_goal: value.primaryGoal,
+    motivation: value.motivation,
+    target_timeframe: value.targetTimeframe,
+    preset_id: value.presetId,
+    main_arc_id: value.mainArcId,
+    arc_theme_id: value.arcThemeId,
+    prioritized_categories: value.categories,
+    difficulty: value.difficulty,
+    daily_reset_time: value.dailyResetTime,
+    time_zone: value.timeZone,
+    active_days: value.activeDays,
+    reminders_enabled: value.remindersEnabled,
+    reminder_times: value.reminderTimes,
+    reminder_types: value.reminderTypes,
+    preferred_tasks: value.tasks,
+    appearance: { theme: value.theme },
+    notification_permission: permission,
+    updated_at: now
+  };
+}
